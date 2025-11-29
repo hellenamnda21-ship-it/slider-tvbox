@@ -1,202 +1,151 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Slider Completo TV Box</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 
-<!-- FIREBASE -->
+<title>Slider TV Box</title>
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden;background:#000;font-family:Arial}
+body,html{height:100%;overflow:hidden;background:#000;font-family:Arial;}
 
-/* SLIDES */
-.slide-wrap{position:fixed;inset:0;z-index:1}
-.slide{
-  position:absolute;inset:0;
-  background-size:cover;
-  background-position:center;
-  background-repeat:no-repeat;
-  opacity:0;
-  transition:opacity .8s;
-}
-.slide.visible{opacity:1}
-
-/* TABELA */
-.menu-box{
-  position:fixed;top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  width:90%;max-width:1100px;
-  display:grid;grid-template-columns:repeat(3,1fr);
-  gap:8px;padding:10px;
-  background:rgba(0,0,0,.35);
-  border-radius:10px;
-  backdrop-filter:blur(4px);
-  z-index:20;
-  transition:opacity .7s;
-}
-.menu-box.oculta{opacity:0;pointer-events:none}
-
-.panel{
-  background:#d83434;padding:8px;border-radius:8px;
-}
-.row{
-  display:flex;justify-content:space-between;
-  padding:5px;background:rgba(255,255,255,.10);
-  border-radius:6px;margin-bottom:6px;
-}
-.name{font-weight:bold;color:#fff}
-.price{
-  background:#fff;color:#111;font-weight:bold;
-  padding:4px 8px;border-radius:6px;
+.slide-wrap{
+    position:fixed;
+    inset:0;
+    z-index:1;
 }
 
-/* MENU FLOAT */
-#menuContainer{
-  position:fixed;bottom:25px;right:25px;z-index:50;
-}
-#menuMainBtn{
-  width:55px;height:55px;border-radius:50%;
-  background:#ff3636;color:#fff;border:none;
-  font-size:30px;cursor:pointer;
-}
-#menuItems{
-  display:none;flex-direction:column;gap:10px;
-  position:absolute;bottom:70px;right:0;
-}
-.menuOption{
-  background:#222;color:#fff;border:none;
-  padding:10px 15px;border-radius:8px;
-  cursor:pointer;width:170px;text-align:center;
+.deslizar{
+    position:absolute;
+    inset:0;
+    background-size:cover;
+    background-position:center;
+    opacity:0;
+    transition:opacity 1s;
 }
 
-/* SLIDE SELECTOR (hidden on TV) */
-#slideSelectBox{display:none}
+.mostrar{opacity:1;}
 
-/* TEMPO BOX hidden on TV */
-#tempoBox{display:none}
+#tabelaBox{
+    position:fixed;
+    bottom:0;
+    left:0;
+    width:100%;
+    background:rgba(0,0,0,0.65);
+    color:#fff;
+    padding:15px;
+    display:none;
+    z-index:5;
+}
+
+table{
+    width:100%;
+    font-size:28px;
+}
+
+th, td{
+    padding:8px;
+}
+
+#btnTabela{
+    position:fixed;
+    top:15px;
+    right:15px;
+    z-index:10;
+    background:#d83434;
+    color:#fff;
+    border:none;
+    padding:10px 20px;
+    font-size:20px;
+    border-radius:6px;
+}
 </style>
 </head>
+
 <body>
 
-<!-- SLIDES -->
-<div class="slide-wrap">
-  <div id="slide1" class="slide" style="background-image:url('https://source.unsplash.com/1600x900/?market');"></div>
-  <div id="slide2" class="slide" style="background-image:url('https://source.unsplash.com/1600x900/?butcher');"></div>
-  <div id="slide3" class="slide" style="background-image:url('https://source.unsplash.com/1600x900/?meat');"></div>
-  <div id="slide4" class="slide" style="background-image:url('https://source.unsplash.com/1600x900/?food');"></div>
-</div>
+<button id="btnTabela">Mostrar Tabela</button>
 
-<!-- TABELA -->
-<div class="menu-box oculta" id="menuBox">
-  <div class="panel" id="col1"></div>
-  <div class="panel" id="col2"></div>
-  <div class="panel" id="col3"></div>
+<div class="slide-wrap" id="slidesContainer"></div>
+
+<div id="tabelaBox">
+    <table id="tabelaMenu"></table>
 </div>
 
 <script>
-// FIREBASE CONFIG
+// CONFIGURAÇÃO DO FIREBASE
 const firebaseConfig = {
-  apiKey: "AIzaSyAfThbx7R_2eRwex6ahAxFD6eMeNRePQ74",
-  authDomain: "slider-tvbox.firebaseapp.com",
-  databaseURL: "https://slider-tvbox-default-rtdb.firebaseio.com",
-  projectId: "slider-tvbox",
-  storageBucket: "slider-tvbox.firebasestorage.app",
-  messagingSenderId: "214816132808",
-  appId: "1:214816132808:web:b438f1b2b0be2bd6375ffd",
-  measurementId: "G-GKBR75WKLX"
+    databaseURL: "https://slider-tvbox-default-rtdb.firebaseio.com/"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// SLIDES elements
-const slides=[
-  document.getElementById("slide1"),
-  document.getElementById("slide2"),
-  document.getElementById("slide3"),
-  document.getElementById("slide4")
-];
+// ----- SLIDES -----
+db.ref("slides").on("value", snap => {
+    const data = snap.val();
+    const container = document.getElementById("slidesContainer");
+    container.innerHTML = "";
 
-let data = [
-  [["Alcatra","R$ 46.80"],["Contra filé","R$ 46.80"],["Coxão mole","R$ 41.99"]],
-  [["Costela Fina","R$ 27.99"],["Costela Suína","R$ -----"],["Bisteca Bovina","R$ 39.99"]],
-  [["Coração Bovino","R$ 16.99"],["Calabresa","R$ 34.99"],["Frango Temp.","R$ 18.99"]]
-];
+    const urls = Object.values(data).filter(v => typeof v === "string");
 
-let tempoOn = 7;
-let tempoOff = 10;
-
-// show slide
-let idx=0;
-function show(i){
-  slides.forEach((s,si)=>s.classList.toggle("visible",si===i));
-}
-show(0);
-let slideInterval = setInterval(()=>{idx=(idx+1)%slides.length;show(idx);},10000);
-
-// render table
-function render(){
-  for(let c=0;c<3;c++){
-    const col=document.getElementById("col"+(c+1));
-    col.innerHTML="";
-    data[c].forEach(item=>{
-      col.innerHTML+=`
-        <div class="row">
-          <div class="name">${item[0]}</div>
-          <div class="price">${item[1]}</div>
-        </div>`;
+    urls.forEach(url => {
+        let div = document.createElement("div");
+        div.className = "deslizar";
+        div.style.backgroundImage = `url('${url}')`;
+        container.appendChild(div);
     });
-  }
+
+    iniciarSlider();
+});
+
+let indice = 0;
+function iniciarSlider(){
+    const slides = document.querySelectorAll(".deslizar");
+    if(slides.length === 0) return;
+
+    setInterval(()=>{
+        slides.forEach(s => s.classList.remove("mostrar"));
+        slides[indice].classList.add("mostrar");
+        indice = (indice + 1) % slides.length;
+    }, 5000);
 }
 
-// table cycle
-function cicloTabela(){
-  const box=document.getElementById("menuBox");
-  box.classList.remove("oculta");
-  setTimeout(()=>{
-    box.classList.add("oculta");
-    setTimeout(cicloTabela, tempoOff*1000);
-  }, tempoOn*1000);
-}
-setTimeout(cicloTabela,1500);
+// ----- TABELA -----
+db.ref("menuData/1").on("value", snap => {
+    const dados = snap.val();
+    const tabela = document.getElementById("tabelaMenu");
 
-// Firebase sync (Option B paths)
-function iniciarFirebaseSync(){
-  // slides (could be base64 or url)
-  db.ref("slides").on("value", snap=>{
-    const v = snap.val();
-    if(!v) return;
-    // v might be array or object with numeric keys
-    const arr = Array.isArray(v) ? v : Object.keys(v).sort().map(k=>v[k]);
-    arr.forEach((url,i)=>{
-      if(url && slides[i]){
-        slides[i].style.backgroundImage = `url('${url}')`;
-      }
+    tabela.innerHTML = "<tr><th>Produto</th><th>Preço</th></tr>";
+
+    Object.values(dados).forEach(item => {
+        tabela.innerHTML += `
+            <tr>
+                <td>${item[0]}</td>
+                <td>${item[1]}</td>
+            </tr>
+        `;
     });
-  });
+});
 
-  // menuData
-  db.ref("menuData").on("value", snap=>{
-    const v = snap.val();
-    if(v) {
-      data = v;
-      render();
+// BOTÃO MOSTRAR / OCULTAR
+const tabelaBox = document.getElementById("tabelaBox");
+const btnTabela = document.getElementById("btnTabela");
+
+btnTabela.onclick = () => {
+    if(tabelaBox.style.display === "none"){
+        tabelaBox.style.display = "block";
+        btnTabela.innerText = "Ocultar Tabela";
+    } else {
+        tabelaBox.style.display = "none";
+        btnTabela.innerText = "Mostrar Tabela";
     }
-  });
-
-  // tempos
-  db.ref("tempoOn").on("value", snap=>{
-    if(snap.exists()) tempoOn = Number(snap.val());
-  });
-  db.ref("tempoOff").on("value", snap=>{
-    if(snap.exists()) tempoOff = Number(snap.val());
-  });
-}
-iniciarFirebaseSync();
-render();
+};
 </script>
 
 </body>
