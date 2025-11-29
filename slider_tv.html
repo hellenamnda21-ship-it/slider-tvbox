@@ -1,152 +1,127 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-
-<title>Slider TV Box</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tabela TV Box</title>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body,html{height:100%;overflow:hidden;background:#000;font-family:Arial;}
+    body {
+        margin: 0;
+        background: #000;
+        font-family: Arial;
+        color: #fff;
+        overflow: hidden;
+    }
 
-.slide-wrap{
-    position:fixed;
-    inset:0;
-    z-index:1;
-}
+    .container {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 10px;
+        box-sizing: border-box;
+    }
 
-.deslizar{
-    position:absolute;
-    inset:0;
-    background-size:cover;
-    background-position:center;
-    opacity:0;
-    transition:opacity 1s;
-}
+    .coluna {
+        width: 32%;
+        background: rgba(255,0,0,0.65);
+        border-radius: 8px;
+        padding: 10px;
+        box-sizing: border-box;
+    }
 
-.mostrar{opacity:1;}
+    .item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        margin-bottom: 10px;
+        background: #d94242;
+        border-radius: 6px;
+    }
 
-#tabelaBox{
-    position:fixed;
-    bottom:0;
-    left:0;
-    width:100%;
-    background:rgba(0,0,0,0.65);
-    color:#fff;
-    padding:15px;
-    display:none;
-    z-index:5;
-}
-
-table{
-    width:100%;
-    font-size:28px;
-}
-
-th, td{
-    padding:8px;
-}
-
-#btnTabela{
-    position:fixed;
-    top:15px;
-    right:15px;
-    z-index:10;
-    background:#d83434;
-    color:#fff;
-    border:none;
-    padding:10px 20px;
-    font-size:20px;
-    border-radius:6px;
-}
+    .item span {
+        font-size: 25px;
+        font-weight: bold;
+    }
 </style>
 </head>
 
 <body>
 
-<button id="btnTabela">Mostrar Tabela</button>
-
-<div class="slide-wrap" id="slidesContainer"></div>
-
-<div id="tabelaBox">
-    <table id="tabelaMenu"></table>
-</div>
+<div class="container" id="tabela"></div>
 
 <script>
-// CONFIGURAÇÃO DO FIREBASE
+/* -----------------------------
+   🔥 CONFIG FIREBASE
+--------------------------------*/
 const firebaseConfig = {
     databaseURL: "https://slider-tvbox-default-rtdb.firebaseio.com/"
 };
-
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.database();
 
-// ----- SLIDES -----
-db.ref("slides").on("value", snap => {
-    const data = snap.val();
-    const container = document.getElementById("slidesContainer");
-    container.innerHTML = "";
+/* -----------------------------
+   📌 BUSCAR A TABELA menuData/1
+--------------------------------*/
+db.ref("menuData/1").on("value", (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
 
-    const urls = Object.values(data).filter(v => typeof v === "string");
+    const container = document.getElementById("tabela");
+    container.innerHTML = ""; // limpar antes de montar
 
-    urls.forEach(url => {
-        let div = document.createElement("div");
-        div.className = "deslizar";
-        div.style.backgroundImage = `url('${url}')`;
-        container.appendChild(div);
-    });
+    // Criar 3 colunas
+    const col1 = document.createElement("div");
+    const col2 = document.createElement("div");
+    const col3 = document.createElement("div");
 
-    iniciarSlider();
-});
+    col1.className = "coluna";
+    col2.className = "coluna";
+    col3.className = "coluna";
 
-let indice = 0;
-function iniciarSlider(){
-    const slides = document.querySelectorAll(".deslizar");
-    if(slides.length === 0) return;
+    // Dividir os itens em 3 colunas iguais
+    const keys = Object.keys(data);
+    const total = keys.length;
+    const porColuna = Math.ceil(total / 3);
 
-    setInterval(()=>{
-        slides.forEach(s => s.classList.remove("mostrar"));
-        slides[indice].classList.add("mostrar");
-        indice = (indice + 1) % slides.length;
-    }, 5000);
-}
+    const coluna1 = keys.slice(0, porColuna);
+    const coluna2 = keys.slice(porColuna, porColuna * 2);
+    const coluna3 = keys.slice(porColuna * 2);
 
-// ----- TABELA -----
-db.ref("menuData/1").on("value", snap => {
-    const dados = snap.val();
-    const tabela = document.getElementById("tabelaMenu");
+    function montar(colunaDados, colunaDiv) {
+        colunaDados.forEach(i => {
+            let item = data[i];
+            let nome = item[0] || "Novo";
+            let preco = item[1] || "R$ 0.00";
 
-    tabela.innerHTML = "<tr><th>Produto</th><th>Preço</th></tr>";
+            const div = document.createElement("div");
+            div.className = "item";
 
-    Object.values(dados).forEach(item => {
-        tabela.innerHTML += `
-            <tr>
-                <td>${item[0]}</td>
-                <td>${item[1]}</td>
-            </tr>
-        `;
-    });
-});
+            div.innerHTML = `
+                <span>${nome}</span>
+                <span>${preco}</span>
+            `;
 
-// BOTÃO MOSTRAR / OCULTAR
-const tabelaBox = document.getElementById("tabelaBox");
-const btnTabela = document.getElementById("btnTabela");
-
-btnTabela.onclick = () => {
-    if(tabelaBox.style.display === "none"){
-        tabelaBox.style.display = "block";
-        btnTabela.innerText = "Ocultar Tabela";
-    } else {
-        tabelaBox.style.display = "none";
-        btnTabela.innerText = "Mostrar Tabela";
+            colunaDiv.appendChild(div);
+        });
     }
-};
-</script>
 
+    montar(coluna1, col1);
+    montar(coluna2, col2);
+    montar(coluna3, col3);
+
+    // Jogar tudo na tela
+    container.appendChild(col1);
+    container.appendChild(col2);
+    container.appendChild(col3);
+});
+</script>
 </body>
 </html>
